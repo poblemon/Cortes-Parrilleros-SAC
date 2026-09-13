@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Cortes Parrilleros SAC - Control de Almacén de Congelados</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              red: '#DC2626',       
+              darkred: '#991B1B',   
+              black: '#0F172A',     
+              dark: '#1E293B',      
+              card: '#18181B',      
+              lightbg: '#F8FAFC',   
+              border: '#E2E8F0',    
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      body { background-color: white !important; color: black !important; font-size: 12pt; }
+      .card-print { border: 1px solid #ccc !important; box-shadow: none !important; }
+    }
+    .print-only { display: none; }
+    
+    /* Scrollbar personalizada */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    
+    /* Ocultar scrollbar en elementos deslizables en móvil */
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Efecto pulsar amigable y mejoras táctiles */
+    .btn-scale { transition: transform 0.15s ease, background-color 0.15s ease; }
+    .btn-scale:active { transform: scale(0.96); }
+    
+    /* Evita el resaltado azul molesto en móviles al tocar botones */
+    * { -webkit-tap-highlight-color: transparent; }
+    
+    /* Asegurar que el modal no se esconda detrás del teclado en móviles */
+    input:focus, select:focus { scroll-margin-top: 100px; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col font-sans antialiased selection:bg-red-100 selection:text-red-900 pb-20 sm:pb-0">
+
+  <header class="bg-black text-white border-b-4 border-brand-red sticky top-0 z-30 shadow-md no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-3">
+      
+      <!-- Logo y Nombre de Empresa -->
+      <div class="flex items-center space-x-3 w-full sm:w-auto justify-center sm:justify-start">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 bg-brand-red rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+          <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          </svg>
+        </div>
+        <div class="text-left">
+          <h1 class="text-lg sm:text-2xl font-black tracking-tight text-white flex items-center gap-1.5 sm:gap-2">
+            CORTES PARRILLEROS <span class="text-brand-red text-sm sm:text-lg font-bold">S.A.C.</span>
+          </h1>
+          <div class="flex items-center gap-2">
+            <p class="text-[10px] sm:text-xs text-slate-300 font-medium">Control de Cámara Frigorífica</p>
+            <button onclick="openDbConfigModal()" id="cloudStatusBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition cursor-pointer">
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-500" id="cloudStatusDot"></span>
+              <span id="cloudStatusText">Conectando...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botones Principales -->
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <button onclick="openDbConfigModal()" class="btn-scale px-3 py-3 sm:py-2.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-amber-300 text-sm font-bold flex items-center justify-center gap-1.5 shadow-sm" title="Configuración de Base de Datos">
+          <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+          <span class="text-xs sm:text-sm">Base de Datos</span>
+        </button>
+
+        <button id="btnQuickReport" onclick="openProductsModal()" class="btn-scale flex-1 sm:flex-none px-3 py-3 sm:py-2.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-sm font-semibold flex items-center justify-center gap-2 shadow-sm">
+          <svg class="w-5 h-5 text-slate-300 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+          <span>Catálogo</span>
+        </button>
+
+        <button id="btnOpenNewEntry" onclick="openNewEntryModal()" class="btn-scale flex-[2] sm:flex-none px-4 py-3 sm:py-2.5 rounded-xl bg-brand-red hover:bg-red-700 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-900/30">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+          <span>+ Ingreso</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Alerta visible cuando no hay base de datos conectada en la nube -->
+  <div id="localModeBanner" class="hidden bg-amber-400 text-slate-950 px-3 sm:px-6 py-2 text-xs sm:text-sm font-bold border-b border-amber-500 shadow-sm no-print">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="flex items-center gap-2 text-center sm:text-left">
+        <span class="text-base">⚠️</span>
+        <span><b>Modo Temporal (Sin Base de Datos):</b> Al recargar la página se borrarán los datos. Conéctala para que tú y tu jefe guarden todo en la nube.</span>
+      </div>
+      <button onclick="openDbConfigModal()" class="bg-slate-950 text-white hover:bg-black px-3.5 py-1.5 rounded-lg text-xs font-black shadow transition whitespace-nowrap">
+        Conectar Base de Datos Ahora
+      </button>
+    </div>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 w-full flex-grow no-print">
+
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+      
+      <!-- Total Kilos Disponibles en Almacén -->
+      <div class="col-span-2 sm:col-span-1 bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-500 mb-2">
+          <span class="text-[11px] sm:text-sm font-bold uppercase tracking-wider text-slate-600">Stock Actual</span>
+          <span class="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg font-bold text-[10px] sm:text-xs">
+            Disponible
+          </span>
+        </div>
+        <div>
+          <h2 id="kpiTotalKilos" class="text-2xl sm:text-4xl font-black text-black">0 <span class="text-sm sm:text-lg font-bold text-slate-500">kg</span></h2>
+          <p id="kpiKilosSubtitle" class="text-[10px] sm:text-xs text-slate-500 mt-1">Kilos netos tras despachos</p>
+        </div>
+        <div class="absolute top-0 left-0 h-1 sm:h-1.5 w-full bg-emerald-600"></div>
+      </div>
+
+      <!-- Total Cajas Disponibles -->
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-500 mb-2">
+          <span class="text-[11px] sm:text-sm font-bold uppercase tracking-wider text-slate-600">Cajas</span>
+          <span class="p-1 sm:p-2 bg-slate-100 text-slate-800 rounded-lg sm:rounded-xl">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+          </span>
+        </div>
+        <div>
+          <h2 id="kpiTotalCajas" class="text-2xl sm:text-4xl font-black text-slate-900">0</h2>
+          <p class="text-[10px] sm:text-xs text-slate-500 mt-1">Saldo de cajas</p>
+        </div>
+        <div class="absolute top-0 left-0 h-1 sm:h-1.5 w-full bg-slate-900"></div>
+      </div>
+
+      <!-- Total Despachado / Salidas -->
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-500 mb-2">
+          <span class="text-[11px] sm:text-sm font-bold uppercase tracking-wider text-slate-600">Salidas</span>
+          <span class="p-1 sm:p-2 bg-amber-50 text-amber-600 rounded-lg sm:rounded-xl">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+          </span>
+        </div>
+        <div>
+          <h2 id="kpiTotalSalidas" class="text-2xl sm:text-4xl font-black text-amber-600">0</h2>
+          <p id="kpiTotalSalidasCajas" class="text-[10px] sm:text-xs text-slate-500 mt-1">cajas despachadas</p>
+        </div>
+        <div class="absolute top-0 left-0 h-1 sm:h-1.5 w-full bg-amber-600"></div>
+      </div>
+      
+      <!-- Notas / Contenedores -->
+      <div class="hidden lg:flex bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-500 mb-2">
+          <span class="text-sm font-bold uppercase tracking-wider text-slate-600">Lotes / Contenedores</span>
+          <span class="p-2 bg-red-50 text-brand-red rounded-xl">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </span>
+        </div>
+        <div>
+          <h2 id="kpiTotalNotas" class="text-4xl font-black text-slate-900">0</h2>
+          <p id="kpiPaletsSubtitle" class="text-xs text-slate-500 mt-1">palets registrados</p>
+        </div>
+        <div class="absolute top-0 left-0 h-1.5 w-full bg-brand-red"></div>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm mb-4 sm:mb-6">
+      <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        
+        <!-- Botones de Período Deslizables en Móvil -->
+        <div class="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 sm:pb-0 w-full lg:w-auto">
+          <span class="hidden sm:inline-block text-xs font-bold uppercase tracking-wider text-slate-500 mr-1 whitespace-nowrap">Filtrar:</span>
+          <button onclick="setFilterPeriod('today')" id="filter-today" class="period-btn flex-shrink-0 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-bold border transition-colors bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300 whitespace-nowrap">
+            📅 Hoy
+          </button>
+          <button onclick="setFilterPeriod('week')" id="filter-week" class="period-btn flex-shrink-0 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-bold border transition-colors bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300 whitespace-nowrap">
+            🗓️ Semana
+          </button>
+          <button onclick="setFilterPeriod('month')" id="filter-month" class="period-btn flex-shrink-0 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-bold border transition-colors bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300 whitespace-nowrap">
+            📊 Mes
+          </button>
+          <button onclick="setFilterPeriod('all')" id="filter-all" class="period-btn flex-shrink-0 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-bold border transition-colors bg-brand-red text-white border-brand-red whitespace-nowrap">
+            🌐 Todos
+          </button>
+        </div>
+
+        <!-- Buscador de texto -->
+        <div class="flex items-center gap-2 flex-grow max-w-full lg:max-w-md w-full">
+          <div class="relative w-full">
+            <!-- text-base prevents iOS zoom -->
+            <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Buscar contenedor, lote o guía..." 
+              class="w-full pl-10 pr-4 py-3 sm:py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent text-base sm:text-sm font-medium">
+            <svg class="w-5 h-5 text-slate-400 absolute left-3 top-3.5 sm:top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
+          <button onclick="clearFilters()" title="Limpiar Filtros" class="p-3 sm:p-2.5 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-600 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <section>
+      <div class="flex items-center justify-between mb-3 sm:mb-4 px-1 sm:px-0">
+        <div>
+          <h2 class="text-lg sm:text-2xl font-black text-black tracking-tight">Registro de Almacén</h2>
+          <p class="text-xs sm:text-sm text-slate-500" id="listSubtitle">Mostrando registros</p>
+        </div>
+        <span id="recordCountBadge" class="bg-slate-200 text-slate-800 text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full whitespace-nowrap">0 registros</span>
+      </div>
+
+      <!-- Contenedor dinámico de Notas -->
+      <div id="notesContainer" class="space-y-4">
+        <!-- Renderizado por JavaScript -->
+      </div>
+
+      <!-- Estado vacío -->
+      <div id="emptyState" class="hidden bg-white rounded-3xl p-8 sm:p-12 text-center border-2 border-dashed border-slate-300">
+        <div class="w-16 h-16 sm:w-20 sm:h-20 bg-red-50 text-brand-red rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 sm:w-10 sm:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+        </div>
+        <h3 class="text-lg sm:text-xl font-bold text-slate-800 mb-1">No hay registros</h3>
+        <p class="text-slate-500 max-w-md mx-auto mb-6 text-xs sm:text-sm">No se encontraron notas con los filtros seleccionados.</p>
+        <button onclick="openNewEntryModal()" class="px-5 py-3 rounded-xl bg-brand-red hover:bg-red-700 text-white font-bold inline-flex items-center gap-2 shadow-md w-full sm:w-auto justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          Registrar Ingreso
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="newEntryModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 no-print">
+    <!-- max-h-[90vh] and rounded-t-3xl for mobile sliding panel feel -->
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-4xl max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up sm:animate-none">
+      
+      <!-- Cabecera del Modal -->
+      <div class="bg-black text-white px-4 sm:px-6 py-4 flex items-center justify-between border-b-2 border-brand-red flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-brand-red flex items-center justify-center">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-xl font-black tracking-tight" id="modalEntryTitle">Nueva Nota de Ingreso</h3>
+            <p class="hidden sm:block text-xs text-slate-300">Cortes Parrilleros SAC • Recepción</p>
+          </div>
+        </div>
+        <button onclick="closeNewEntryModal()" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form id="entryForm" onsubmit="saveEntry(event)" class="p-4 sm:p-6 overflow-y-auto space-y-5 flex-grow" style="-webkit-overflow-scrolling: touch;">
+        
+        <!-- Datos Generales -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div>
+            <label class="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Fecha de Ingreso *</label>
+            <input type="date" id="inputDate" required class="w-full px-3 py-3 sm:py-2.5 rounded-xl border border-slate-300 font-bold text-slate-800 focus:ring-2 focus:ring-brand-red focus:outline-none text-base sm:text-sm">
+          </div>
+          <div>
+            <label class="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">N° Contenedor / Guía *</label>
+            <input type="text" id="inputContainer" placeholder="Ej: CONT-MSKU-8209" required class="w-full px-3 py-3 sm:py-2.5 rounded-xl border border-slate-300 font-semibold text-slate-800 focus:ring-2 focus:ring-brand-red focus:outline-none text-base sm:text-sm">
+          </div>
+          <div class="hidden sm:block">
+            <label class="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Responsable en Balanza</label>
+            <input type="text" id="inputOperator" placeholder="Ej: Carlos Alarcón" class="w-full px-3 py-3 sm:py-2.5 rounded-xl border border-slate-300 font-semibold text-slate-800 focus:ring-2 focus:ring-brand-red focus:outline-none text-base sm:text-sm">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Observaciones / Notas del Ingreso (Opcional)</label>
+          <input type="text" id="inputNotes" placeholder="Ej: Precinto intacto, lote con buena temperatura, observaciones..." class="w-full px-3 py-3 sm:py-2.5 rounded-xl border border-slate-300 font-medium text-slate-800 focus:ring-2 focus:ring-brand-red focus:outline-none text-base sm:text-sm bg-slate-50">
+        </div>
+
+        <!-- Selección de Producto -->
+        <div class="bg-slate-50 p-3 sm:p-5 rounded-2xl border border-slate-200">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">Producto / Corte *</label>
+            <button type="button" onclick="showInlineProductCreate(true)" class="text-[11px] sm:text-xs font-bold text-brand-red hover:text-red-700 flex items-center gap-1 self-start sm:self-auto">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              <span>+ ¿No está? Crear Producto</span>
+            </button>
+          </div>
+
+          <div id="productSelectWrapper">
+            <!-- text-base prevents zoom on iOS select -->
+            <select id="productSelect" required class="w-full px-3 py-3 rounded-xl border border-slate-300 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-brand-red focus:outline-none text-base">
+              <!-- Opciones dinámicas -->
+            </select>
+          </div>
+
+          <!-- Crear producto inline -->
+          <div id="inlineProductForm" class="hidden mt-3 p-3 sm:p-4 bg-white rounded-xl border border-brand-red/40 shadow-sm space-y-3">
+            <div class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-brand-red">Crear Nuevo Producto</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input type="text" id="newProductName" placeholder="Nombre (Ej: HIGADO)" class="px-3 py-3 sm:py-2 rounded-xl border border-slate-300 font-bold uppercase text-base sm:text-sm">
+              <input type="text" id="newProductBrand" placeholder="Marca (Ej: Swift)" class="px-3 py-3 sm:py-2 rounded-xl border border-slate-300 font-semibold text-base sm:text-sm">
+            </div>
+            <div class="flex items-center justify-end gap-2 mt-2">
+              <button type="button" onclick="showInlineProductCreate(false)" class="px-4 py-2 sm:py-1.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100">Cancelar</button>
+              <button type="button" onclick="saveNewProductInline()" class="px-5 py-2 sm:py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white shadow-md">Guardar y Usar</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
+            <div>
+              <h4 class="text-sm font-black text-slate-900 uppercase tracking-wider">Desglose de Palets</h4>
+            </div>
+            <span id="palletCounterBadge" class="text-[11px] sm:text-xs font-bold bg-red-50 text-brand-red px-3 py-1 rounded-full border border-red-100 self-start sm:self-auto">
+              3 palets
+            </span>
+          </div>
+
+          <!-- Contenedor adaptivo para palets (Divs en lugar de Tabla pura) -->
+          <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white sm:bg-transparent">
+            <!-- Header Desktop -->
+            <div class="hidden sm:flex bg-slate-100 text-slate-700 text-xs uppercase tracking-wider font-black border-b border-slate-200 divide-x divide-slate-200">
+              <div class="py-3 px-4 text-center w-28">Palet</div>
+              <div class="py-3 px-4 w-40 flex-1">Cajas</div>
+              <div class="py-3 px-4 w-44 flex-1">Peso (kg)</div>
+              <div class="py-3 px-4 text-center flex-1">Promedio</div>
+              <div class="py-3 px-3 text-center w-14"></div>
+            </div>
+            
+            <!-- Filas dinámicas -->
+            <div id="palletsTableBody" class="flex flex-col sm:block divide-y sm:divide-y-0 divide-slate-100 bg-transparent sm:bg-white p-2 sm:p-0">
+              <!-- Renderizado por JS -->
+            </div>
+          </div>
+
+          <button type="button" onclick="addPalletRow()" class="mt-3 w-full py-3.5 sm:py-3 border-2 border-dashed border-slate-300 hover:border-brand-red rounded-xl sm:rounded-2xl text-slate-600 hover:text-brand-red font-bold text-sm flex items-center justify-center gap-2 transition bg-slate-50/50 hover:bg-red-50/20 shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+            <span>+ Agregar Otro Palet</span>
+          </button>
+        </div>
+
+        <div class="block sm:hidden">
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">Responsable en Balanza</label>
+            <input type="text" id="inputOperatorMobile" placeholder="Ej: Carlos Alarcón" class="w-full px-3 py-3 rounded-xl border border-slate-300 font-semibold text-slate-800 focus:ring-2 focus:ring-brand-red focus:outline-none text-base">
+        </div>
+
+        <!-- Resumen Pegajoso o al fondo -->
+        <div class="bg-slate-900 text-white p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky bottom-0 sm:static shadow-lg sm:shadow-none -mx-4 sm:mx-0 rounded-b-none sm:rounded-2xl z-10 border-t border-slate-700 sm:border-none">
+          <div class="flex items-center justify-between sm:justify-start space-x-4 sm:space-x-6 w-full sm:w-auto">
+            <div>
+              <span class="text-[10px] sm:text-[11px] text-slate-400 uppercase tracking-wider block">Palets</span>
+              <span id="formSummaryPalets" class="text-lg sm:text-xl font-black text-white">0</span>
+            </div>
+            <div>
+              <span class="text-[10px] sm:text-[11px] text-slate-400 uppercase tracking-wider block">Cajas</span>
+              <span id="formSummaryCajas" class="text-lg sm:text-xl font-black text-white">0</span>
+            </div>
+            <div class="text-right sm:text-left">
+              <span class="text-[10px] sm:text-[11px] text-slate-400 uppercase tracking-wider block">Total Ingreso</span>
+              <span id="formSummaryKilos" class="text-lg sm:text-xl font-black text-brand-red">0.00 kg</span>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <button type="button" onclick="closeNewEntryModal()" class="w-full sm:w-auto px-5 py-3 sm:py-2.5 rounded-xl border border-slate-700 text-slate-300 font-bold text-sm bg-slate-800 sm:bg-transparent">
+              Cancelar
+            </button>
+            <button type="submit" class="w-full sm:w-auto px-6 py-3.5 sm:py-2.5 rounded-xl bg-brand-red hover:bg-red-700 text-white font-black text-sm sm:text-base shadow-lg flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              <span id="btnSubmitText">Guardar Ingreso</span>
+            </button>
+          </div>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <div id="dispatchModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 no-print">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-xl max-h-[95vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up sm:animate-none">
+      
+      <div class="bg-slate-900 text-white px-4 sm:px-6 py-4 flex items-center justify-between border-b-4 border-amber-500 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-xl font-black tracking-tight text-white">Registrar Salida</h3>
+            <p id="dispatchModalSubtitle" class="hidden sm:block text-xs text-amber-300 font-bold">Descontar cajas de este contenedor</p>
+          </div>
+        </div>
+        <button onclick="closeDispatchModal()" class="p-2 rounded-xl text-slate-400 hover:text-white transition">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form id="dispatchForm" onsubmit="saveDispatch(event)" class="p-4 sm:p-6 overflow-y-auto space-y-4 sm:space-y-5 flex-grow" style="-webkit-overflow-scrolling: touch;">
+        
+        <div class="bg-amber-50 rounded-2xl p-3 sm:p-4 border border-amber-200">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
+            <div>
+              <span id="dispatchProdName" class="text-base sm:text-lg font-black text-slate-900 block leading-tight">HIGADO - Blue Ribbon</span>
+              <span id="dispatchContRef" class="text-[11px] sm:text-xs font-semibold text-slate-600">Lote: CONT-MSKU-8209</span>
+            </div>
+            <div class="text-left sm:text-right mt-1 sm:mt-0">
+              <span class="text-[10px] sm:text-xs font-bold text-slate-500 block uppercase">Stock Disponible:</span>
+              <span id="dispatchStockBadge" class="text-sm sm:text-lg font-black text-emerald-700 bg-emerald-100 px-2 sm:px-3 py-1 rounded-lg sm:rounded-xl inline-block mt-0.5">
+                250 cjs / 5,000 kg
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div>
+            <label class="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Fecha *</label>
+            <input type="date" id="dispatchDate" required class="w-full px-3 py-3 sm:py-2.5 rounded-xl border border-slate-300 font-bold text-slate-800 text-base sm:text-sm">
+          </div>
+          <div>
+            <label class="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Destino / Cliente</label>
+            <input type="text" id="dispatchDestination" placeholder="Ej: Venta Mayorista" class="w-full px-3 py-3 sm:py-2.5 rounded-xl border border-slate-300 font-semibold text-slate-800 text-base sm:text-sm">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+          <div>
+            <label class="block text-xs font-black uppercase tracking-wider text-slate-800 mb-1">🪵 Palets a Sacar</label>
+            <input type="number" id="dispatchPallets" min="0" step="1" placeholder="0"
+              class="w-full px-4 py-3 rounded-xl border-2 border-slate-300 font-black text-xl text-slate-900 focus:border-amber-500 focus:outline-none text-base">
+            <span class="text-[10px] text-slate-500 font-semibold block mt-1">Opcional</span>
+          </div>
+          <div>
+            <label class="block text-xs font-black uppercase tracking-wider text-slate-800 mb-1">📦 Cajas a Sacar *</label>
+            <input type="number" id="dispatchBoxes" min="1" step="1" required placeholder="0" oninput="handleDispatchBoxChange()"
+              class="w-full px-4 py-3 rounded-xl border-2 border-slate-300 font-black text-xl text-slate-900 focus:border-amber-500 focus:outline-none text-base">
+            <span class="text-[10px] text-slate-500 font-semibold block mt-1">Obligatorio</span>
+          </div>
+          <div>
+            <label class="block text-xs font-black uppercase tracking-wider text-slate-800 mb-1">⚖️ Kilos Estimados *</label>
+            <input type="number" id="dispatchWeight" min="0.1" step="0.01" required placeholder="0.00"
+              class="w-full px-4 py-3 rounded-xl border-2 border-slate-300 font-black text-xl text-amber-600 focus:border-amber-500 focus:outline-none text-base">
+            <span id="dispatchWeightHint" class="text-[10px] text-slate-500 font-semibold block mt-1">Sugerido por promedio</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Descripción / Observación de Salida (Opcional)</label>
+          <input type="text" id="dispatchNotes" placeholder="Ej: Chofer Juan Pérez, placa ABC-123, retiro parcial..."
+            class="w-full px-3 py-3 sm:py-2.5 rounded-xl border border-slate-300 font-medium text-slate-800 focus:border-amber-500 focus:outline-none text-base sm:text-sm bg-slate-50">
+        </div>
+
+        <div class="pt-2 sm:pt-3 flex flex-col-reverse sm:flex-row items-center justify-end gap-3">
+          <button type="button" onclick="closeDispatchModal()" class="w-full sm:w-auto px-6 py-3.5 sm:py-3 rounded-xl border border-slate-300 text-slate-700 font-bold bg-slate-50 sm:bg-transparent">
+            Cancelar
+          </button>
+          <button type="submit" class="w-full sm:w-auto px-8 py-3.5 sm:py-3 rounded-xl bg-amber-500 text-slate-950 font-black text-base shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+            <span>Confirmar Salida</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Catálogo de Productos -->
+  <div id="productsModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 no-print">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up sm:animate-none">
+      
+      <!-- Cabecera del modal de catálogo -->
+      <div class="bg-black text-white px-4 sm:px-6 py-4 flex items-center justify-between border-b-2 border-brand-red flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-brand-red flex items-center justify-center">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-xl font-black tracking-tight">Catálogo de Productos y Cortes</h3>
+            <p class="text-xs text-slate-300">Cortes Parrilleros SAC • Gestión de Catálogo</p>
+          </div>
+        </div>
+        <button onclick="closeProductsModal()" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-grow" style="-webkit-overflow-scrolling: touch;">
+        <form onsubmit="addProductFromModal(event)" class="bg-slate-50 p-3 sm:p-4 rounded-2xl border border-slate-200">
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Registrar Nuevo Producto al Catálogo</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-3">
+            <input type="text" id="catProductName" required placeholder="Nombre (Ej: PICANHA)" class="px-3 py-2.5 rounded-xl border border-slate-300 font-bold uppercase text-base sm:text-sm">
+            <input type="text" id="catProductBrand" placeholder="Marca (Ej: Minerva)" class="px-3 py-2.5 rounded-xl border border-slate-300 font-semibold text-base sm:text-sm">
+          </div>
+          <button type="submit" class="w-full sm:w-auto px-5 py-2.5 bg-brand-red text-white font-bold text-xs sm:text-sm rounded-xl hover:bg-red-700 transition flex items-center justify-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span>Agregar al Catálogo</span>
+          </button>
+        </form>
+
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-600">Productos Registrados</span>
+            <span id="catTotalCount" class="text-xs font-bold text-slate-500">0 productos</span>
+          </div>
+          <div id="productsListContainer" class="space-y-2 max-h-64 overflow-y-auto">
+            <!-- Renderizado dinámicamente -->
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-100 px-4 sm:px-6 py-3 border-t border-slate-200 flex justify-end">
+        <button type="button" onclick="closeProductsModal()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-sm">
+          Listo / Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Configuración y Conexión de Base de Datos -->
+  <div id="dbConfigModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 no-print">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up sm:animate-none">
+      
+      <div class="bg-black text-white px-4 sm:px-6 py-4 flex items-center justify-between border-b-2 border-brand-red flex-shrink-0">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-xl font-black tracking-tight">Conexión de Base de Datos</h3>
+            <p class="text-xs text-slate-300">Guardado permanente en la nube para Vercel y móviles</p>
+          </div>
+        </div>
+        <button onclick="closeDbConfigModal()" class="p-2 rounded-xl text-slate-400 hover:text-white transition">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-grow" style="-webkit-overflow-scrolling: touch;">
+        
+        <div id="dbModalStatusBox" class="p-3.5 rounded-2xl border flex items-center justify-between bg-slate-50 border-slate-200">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Estado Actual</span>
+            <span id="dbModalStatusText" class="text-sm font-black text-slate-800">Verificando...</span>
+          </div>
+          <span id="dbModalStatusPill" class="text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-700">Comprobando</span>
+        </div>
+
+        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs sm:text-sm text-slate-700 space-y-2">
+          <p class="font-bold text-slate-900 flex items-center gap-1.5">
+            <span>💡</span> ¿Por qué se borran los datos al recargar en Vercel?
+          </p>
+          <p class="text-slate-600 leading-relaxed">
+            Vercel solo aloja la pantalla visual. Para que los pesajes y despachos queden guardados permanentemente en tu empresa y se sincronicen entre computadoras y celulares, se utiliza una base de datos gratuita de <b>Google Cloud (Firestore)</b>.
+          </p>
+        </div>
+
+        <div class="space-y-3">
+          <label class="block text-xs font-black uppercase tracking-wider text-slate-800">
+            Pega aquí tu Configuración de Firebase (JSON o variables):
+          </label>
+          <textarea id="dbConfigInput" rows="5" placeholder='{\n  "apiKey": "AIzaSy...",\n  "authDomain": "tu-proyecto.firebaseapp.com",\n  "projectId": "tu-proyecto",\n  "storageBucket": "tu-proyecto.appspot.com",\n  "messagingSenderId": "...",\n  "appId": "..."\n}' class="w-full p-3 font-mono text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-brand-red focus:outline-none bg-slate-900 text-emerald-400"></textarea>
+          <p class="text-[11px] text-slate-500">
+            También puedes dejarlo configurado de forma fija en la variable <code>manualFirebaseConfig</code> al inicio del código JavaScript.
+          </p>
+        </div>
+
+        <div class="bg-blue-50 p-3.5 rounded-xl border border-blue-200 text-xs text-blue-900 space-y-1.5">
+          <span class="font-bold block">Pasos para obtener tu base de datos gratuita (en 2 minutos):</span>
+          <ol class="list-decimal pl-4 space-y-1 text-[11px] sm:text-xs text-blue-800">
+            <li>Entra a <b>console.firebase.google.com</b> con tu cuenta de Google.</li>
+            <li>Crea un proyecto llamado <b>Cortes Parrilleros</b>.</li>
+            <li>En el menú lateral ve a <b>Firestore Database</b> > <b>Crear base de datos</b> (en modo de prueba).</li>
+            <li>En <b>Autenticación (Authentication)</b> activa el método <b>Anónimo</b>.</li>
+            <li>Ve a la rueda de Configuración del Proyecto > <b>Tus apps</b> > Web <code>&lt;/&gt;</code> y copia el objeto <code>firebaseConfig</code> aquí.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="bg-slate-100 px-4 sm:px-6 py-3 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-center justify-between gap-2">
+        <button type="button" onclick="closeDbConfigModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm bg-white">
+          Cerrar
+        </button>
+        <button type="button" onclick="applyManualDbConfig()" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-brand-red hover:bg-red-700 text-white font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          <span>Conectar y Probar</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toastNotification" class="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-50 transform translate-y-40 transition-transform duration-300 ease-out max-w-md w-auto no-print">
+    <div id="toastInner" class="bg-black text-white p-4 rounded-2xl shadow-2xl border-l-4 border-brand-red flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div id="toastIcon" class="w-8 h-8 rounded-full bg-brand-red flex items-center justify-center text-white flex-shrink-0 text-sm font-bold">✓</div>
+        <div>
+          <p id="toastTitle" class="text-sm font-bold text-white">Operación exitosa</p>
+          <p id="toastMessage" class="text-xs text-slate-300">Detalles de la acción realizada.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="printSheet" class="print-only p-8 max-w-3xl mx-auto bg-white"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // =========================================================================
+    // ⚙️ CONFIGURACIÓN FIJA DE BASE DE DATOS (FIREBASE FIRESTORE)
+    // Pega aquí las llaves de tu proyecto de Firebase para que nunca se borre
+    // nada en Vercel, o utiliza el botón "Base de Datos" de la barra superior.
+    // =========================================================================
+    const manualFirebaseConfig = {
+      // apiKey: "TU_API_KEY",
+      // authDomain: "cortes-parrilleros.firebaseapp.com",
+      // projectId: "cortes-parrilleros",
+      // storageBucket: "cortes-parrilleros.firebasestorage.app",
+      // messagingSenderId: "123456789",
+      // appId: "1:123456789:web:abcdef"
+    };
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'cortes-parrilleros-sac';
+    
+    // Configuración de Firebase
+    let firebaseConfig = null;
+    if (typeof __firebase_config !== 'undefined') {
+      try {
+        firebaseConfig = JSON.parse(__firebase_config);
+      } catch (err) {
+        console.error("Error al parsear __firebase_config", err);
+      }
+    } else if (manualFirebaseConfig && manualFirebaseConfig.apiKey) {
+      firebaseConfig = manualFirebaseConfig;
+    }
+
+    let auth = null;
+    let db = null;
+    let currentUser = null;
+
+    const defaultInitialProducts = [
+      { id: 'prod-1', name: 'HIGADO', brand: 'Blue Ribbon' },
+      { id: 'prod-2', name: 'BIFE ANGOSTO', brand: 'Swift' },
+      { id: 'prod-3', name: 'COLITA DE CUADRIL', brand: 'Angus Prime' },
+      { id: 'prod-4', name: 'ASADO DE TIRA', brand: 'Gorina' }
+    ];
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    let products = [...defaultInitialProducts];
+    let entries = [];
+    let currentFilterPeriod = 'all'; 
+    let searchQuery = '';
+    let editingEntryId = null;
+    let dispatchingEntryId = null;
+
+    function updateCloudStatus(status, message) {
+      const badge = document.getElementById('cloudStatusBadge');
+      const dot = document.getElementById('cloudStatusDot');
+      const text = document.getElementById('cloudStatusText');
+      const banner = document.getElementById('localModeBanner');
+      const modalText = document.getElementById('dbModalStatusText');
+      const modalPill = document.getElementById('dbModalStatusPill');
+
+      if (!badge || !dot || !text) return;
+
+      if (status === 'connected') {
+        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-800 shadow-sm cursor-pointer";
+        dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+        text.textContent = message || "En la Nube";
+        if (banner) banner.classList.add('hidden');
+        if (modalText) modalText.textContent = "Conectado a la Nube (Permanente)";
+        if (modalPill) {
+          modalPill.className = "text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800";
+          modalPill.textContent = "🟢 Activo";
+        }
+      } else if (status === 'syncing') {
+        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-950/80 text-blue-400 border border-blue-800 cursor-pointer";
+        dot.className = "w-2 h-2 rounded-full bg-blue-400 animate-spin";
+        text.textContent = message || "Sincronizando";
+        if (modalText) modalText.textContent = "Estableciendo conexión...";
+        if (modalPill) {
+          modalPill.className = "text-xs font-bold px-3 py-1 rounded-full bg-blue-100 text-blue-800";
+          modalPill.textContent = "🔵 Conectando";
+        }
+      } else {
+        badge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/80 text-amber-400 border border-amber-800 cursor-pointer";
+        dot.className = "w-2 h-2 rounded-full bg-amber-400";
+        text.textContent = message || "Modo Temporal";
+        if (banner) banner.classList.remove('hidden');
+        if (modalText) modalText.textContent = "Sin Base de Datos (Memoria Temporal)";
+        if (modalPill) {
+          modalPill.className = "text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-900";
+          modalPill.textContent = "⚠️ Desconectado";
+        }
+      }
+    }
+
+    async function initCloudDatabase() {
+      if (!firebaseConfig || !firebaseConfig.apiKey) {
+        updateCloudStatus('offline', 'Modo Temporal');
+        populateProductSelect();
+        renderApp();
+        return;
+      }
+
+      try {
+        updateCloudStatus('syncing', 'Conectando...');
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+
+        currentUser = auth.currentUser;
+        if (!currentUser) {
+          updateCloudStatus('offline', 'Sin Conexión');
+          renderApp();
+          return;
+        }
+
+        listenToCloudCollections();
+      } catch (err) {
+        console.error("Error al iniciar base de datos:", err);
+        updateCloudStatus('offline', 'Error de Nube');
+        renderApp();
+      }
+    }
+
+    function openDbConfigModal() {
+      const modal = document.getElementById('dbConfigModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      const input = document.getElementById('dbConfigInput');
+      if (input && firebaseConfig) {
+        input.value = JSON.stringify(firebaseConfig, null, 2);
+      }
+    }
+
+    function closeDbConfigModal() {
+      const modal = document.getElementById('dbConfigModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function applyManualDbConfig() {
+      const input = document.getElementById('dbConfigInput');
+      const raw = input.value.trim();
+      if (!raw) {
+        showToast('Atención', 'Pega el objeto o JSON de configuración de Firebase', 'info');
+        return;
+      }
+
+      try {
+        let parsed = null;
+        if (raw.startsWith('{')) {
+          parsed = JSON.parse(raw);
+        } else {
+          // Intentar parsear si pegaron formato JavaScript const firebaseConfig = { ... }
+          const cleaned = raw.replace(/^[^{]*/, '').replace(/[^}]*$/, '');
+          parsed = JSON.parse(cleaned);
+        }
+
+        if (!parsed.apiKey || !parsed.projectId) {
+          throw new Error('El objeto debe contener al menos apiKey y projectId');
+        }
+
+        firebaseConfig = parsed;
+        updateCloudStatus('syncing', 'Conectando...');
+        await initCloudDatabase();
+        closeDbConfigModal();
+        showToast('Conectado', 'Base de datos vinculada con éxito');
+      } catch (err) {
+        console.error("Error al configurar base de datos:", err);
+        showToast('Error', 'Configuración inválida. Revisa el formato JSON.', 'error');
+      }
+    }
+
+    function listenToCloudCollections() {
+      if (!currentUser || !db) return;
+
+      const productsCol = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+      const entriesCol = collection(db, 'artifacts', appId, 'public', 'data', 'entries');
+
+      // Escucha en tiempo real de productos
+      onSnapshot(productsCol, async (snapshot) => {
+        if (snapshot.empty) {
+          // Sembrar catálogo inicial si la base está nueva
+          for (const prod of defaultInitialProducts) {
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', prod.id), prod);
+          }
+        } else {
+          products = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+          populateProductSelect();
+          renderProductsList();
+          renderApp();
+        }
+      }, (error) => {
+        console.error("Error escuchando productos:", error);
+      });
+
+      // Escucha en tiempo real de notas de almacén
+      onSnapshot(entriesCol, (snapshot) => {
+        entries = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+        // Ordenar en memoria por fecha más reciente
+        entries.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        updateCloudStatus('connected', 'Sincronizado');
+        renderApp();
+      }, (error) => {
+        console.error("Error escuchando inventario:", error);
+      });
+    }
+
+    function openProductsModal() {
+      renderProductsList();
+      document.getElementById('productsModal').classList.remove('hidden');
+    }
+
+    function closeProductsModal() {
+      document.getElementById('productsModal').classList.add('hidden');
+    }
+
+    function renderProductsList() {
+      const container = document.getElementById('productsListContainer');
+      const counter = document.getElementById('catTotalCount');
+      if (!container) return;
+
+      if (counter) counter.textContent = `${products.length} producto${products.length === 1 ? '' : 's'}`;
+
+      container.innerHTML = products.map(p => {
+        const inUse = entries.some(e => e.productId === p.id);
+        return `
+          <div class="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
+            <div>
+              <p class="font-black text-slate-900 text-sm">${p.name}</p>
+              <p class="text-xs text-slate-500 font-semibold">${p.brand || 'Genérico'}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded ${inUse ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
+                ${inUse ? 'En uso' : 'Sin registros'}
+              </span>
+              ${!inUse ? `
+                <button type="button" onclick="deleteProduct('${p.id}')" title="Eliminar producto" class="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function addProductFromModal(e) {
+      e.preventDefault();
+      const nameInput = document.getElementById('catProductName');
+      const brandInput = document.getElementById('catProductBrand');
+      const name = nameInput.value.trim().toUpperCase();
+      const brand = brandInput.value.trim();
+
+      if (!name) return showToast('Error', 'El nombre del producto es obligatorio', 'error');
+
+      const newId = 'prod-' + Date.now();
+      const newProduct = {
+        id: newId,
+        name,
+        brand: brand || 'Genérico'
+      };
+
+      if (db && currentUser) {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', newId), newProduct);
+      } else {
+        products.push(newProduct);
+        populateProductSelect(newProduct.id);
+        renderProductsList();
+      }
+
+      nameInput.value = '';
+      brandInput.value = '';
+      showToast('Guardado', `${newProduct.name} guardado en la nube`);
+    }
+
+    async function deleteProduct(id) {
+      if (db && currentUser) {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', id));
+      } else {
+        products = products.filter(p => p.id !== id);
+        populateProductSelect();
+        renderProductsList();
+      }
+      showToast('Eliminado', 'Producto retirado del catálogo', 'info');
+    }
+
+    function showInlineProductCreate(show) {
+      const form = document.getElementById('inlineProductForm');
+      if (!form) return;
+      if (show) {
+        form.classList.remove('hidden');
+        document.getElementById('newProductName').focus();
+      } else {
+        form.classList.add('hidden');
+        document.getElementById('newProductName').value = '';
+        document.getElementById('newProductBrand').value = '';
+      }
+    }
+
+    async function saveNewProductInline() {
+      const nameInput = document.getElementById('newProductName');
+      const brandInput = document.getElementById('newProductBrand');
+      const name = nameInput.value.trim().toUpperCase();
+      const brand = brandInput.value.trim();
+
+      if (!name) return showToast('Error', 'Ingrese el nombre del corte', 'error');
+
+      const newId = 'prod-' + Date.now();
+      const newProd = {
+        id: newId,
+        name: name,
+        brand: brand || 'Genérico'
+      };
+
+      if (db && currentUser) {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', newId), newProd);
+      } else {
+        products.push(newProd);
+        populateProductSelect(newId);
+      }
+
+      showInlineProductCreate(false);
+      showToast('Producto agregado', `${newProd.name} - ${newProd.brand}`);
+    }
+
+    function populateProductSelect(selectedId = null) {
+      const select = document.getElementById('productSelect');
+      if (!select) return;
+      select.innerHTML = '<option value="">-- Seleccione un Producto --</option>';
+      products.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.name} - ${p.brand}`;
+        if (selectedId && p.id === selectedId) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function resetPalletForm() {
+      const tbody = document.getElementById('palletsTableBody');
+      tbody.innerHTML = '';
+      addPalletRow(1, '', '');
+      recalculatePalletTotals();
+    }
+
+    function addPalletRow(palletNum = null, boxesVal = '', weightVal = '') {
+      const tbody = document.getElementById('palletsTableBody');
+      const num = palletNum || (tbody.children.length + 1);
+
+      const div = document.createElement('div');
+      div.className = 'pallet-row flex flex-col sm:flex-row sm:items-center bg-slate-50 sm:bg-white rounded-xl sm:rounded-none p-3 sm:p-0 mb-3 sm:mb-0 border sm:border-0 border-slate-200 sm:border-b last:border-b-0 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 sm:divide-slate-200 transition-colors gap-2 sm:gap-0 relative';
+      
+      div.innerHTML = `
+        <div class="sm:w-28 flex items-center justify-between sm:justify-center sm:py-3 sm:px-4 font-black text-slate-900 bg-slate-50/70 sm:bg-transparent rounded-lg sm:rounded-none p-2 sm:p-0">
+          <span class="pallet-num-label text-sm sm:text-base">Palet #${num}</span>
+          <button type="button" onclick="removePalletRow(this)" class="sm:hidden text-slate-400 hover:text-red-600 bg-white shadow-sm p-1.5 rounded-lg border border-slate-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          </button>
+        </div>
+        
+        <div class="flex gap-2 pt-2 sm:pt-0 sm:gap-0 sm:contents">
+            <div class="flex-1 sm:w-40 sm:flex-none sm:py-2.5 sm:px-4 flex flex-col justify-center">
+                <label class="sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-1">Cajas</label>
+                <input type="number" min="1" step="1" required value="${boxesVal}" placeholder="0" oninput="handlePalletInputChange(this)" class="box-input w-full px-3 py-3 sm:py-2 text-base sm:text-sm font-bold text-slate-900 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-red focus:outline-none shadow-sm sm:shadow-none">
+            </div>
+            
+            <div class="flex-1 sm:w-44 sm:flex-none sm:py-2.5 sm:px-4 flex flex-col justify-center">
+                <label class="sm:hidden text-[10px] font-bold text-slate-500 uppercase mb-1">Peso (kg)</label>
+                <input type="number" min="0.1" step="0.01" required value="${weightVal}" placeholder="0.00" oninput="handlePalletInputChange(this)" class="weight-input w-full px-3 py-3 sm:py-2 text-base sm:text-sm font-bold text-brand-red bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-red focus:outline-none shadow-sm sm:shadow-none">
+            </div>
+        </div>
+
+        <div class="hidden sm:flex flex-1 py-3 px-4 justify-center font-bold text-slate-600 avg-cell">-</div>
+        
+        <div class="hidden sm:flex w-14 py-2 px-3 justify-center items-center">
+          <button type="button" onclick="removePalletRow(this)" title="Quitar este palet" class="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          </button>
+        </div>
+      `;
+
+      tbody.appendChild(div);
+      renumberPallets();
+      recalculatePalletTotals();
+    }
+
+    function removePalletRow(btn) {
+      const tbody = document.getElementById('palletsTableBody');
+      if (tbody.children.length <= 1) { 
+        showToast('Atención', 'Mínimo 1 palet requerido', 'info'); 
+        return; 
+      }
+      btn.closest('.pallet-row').remove();
+      renumberPallets(); 
+      recalculatePalletTotals();
+    }
+
+    function renumberPallets() {
+      const rows = document.querySelectorAll('.pallet-row');
+      rows.forEach((row, idx) => {
+        const label = row.querySelector('.pallet-num-label');
+        if (label) label.textContent = `Palet #${idx + 1}`;
+      });
+      document.getElementById('palletCounterBadge').textContent = `${rows.length} palet${rows.length === 1 ? '' : 's'}`;
+    }
+
+    function handlePalletInputChange(inputElement) {
+      const row = inputElement.closest('.pallet-row');
+      const box = parseFloat(row.querySelector('.box-input').value) || 0;
+      const weight = parseFloat(row.querySelector('.weight-input').value) || 0;
+      const avgCell = row.querySelector('.avg-cell');
+      if (avgCell) avgCell.textContent = (box > 0 && weight > 0) ? (weight / box).toFixed(2) + ' kg' : '-';
+      recalculatePalletTotals();
+    }
+
+    function recalculatePalletTotals() {
+      const rows = document.querySelectorAll('.pallet-row');
+      let tBox = 0, tKg = 0;
+      rows.forEach(r => {
+        tBox += (parseFloat(r.querySelector('.box-input').value) || 0);
+        tKg += (parseFloat(r.querySelector('.weight-input').value) || 0);
+      });
+      document.getElementById('formSummaryPalets').textContent = rows.length;
+      document.getElementById('formSummaryCajas').textContent = tBox;
+      document.getElementById('formSummaryKilos').textContent = tKg.toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' kg';
+    }
+
+    function openNewEntryModal(entryId = null) {
+      editingEntryId = entryId;
+      document.getElementById('newEntryModal').classList.remove('hidden');
+      if (entryId) {
+        const item = entries.find(e => e.id === entryId);
+        document.getElementById('modalEntryTitle').textContent = `Editar Ingreso`;
+        document.getElementById('inputDate').value = item.date;
+        document.getElementById('inputContainer').value = item.container;
+        const operatorId = window.innerWidth < 640 ? 'inputOperatorMobile' : 'inputOperator';
+        document.getElementById(operatorId).value = item.operator || '';
+        document.getElementById('inputNotes').value = item.notes || '';
+        populateProductSelect(item.productId);
+        document.getElementById('palletsTableBody').innerHTML = '';
+        item.pallets.forEach((p, i) => addPalletRow(i + 1, p.boxes, p.weight));
+      } else {
+        document.getElementById('modalEntryTitle').textContent = `Nueva Nota de Ingreso`;
+        document.getElementById('entryForm').reset();
+        document.getElementById('inputDate').value = todayStr;
+        document.getElementById('inputNotes').value = '';
+        resetPalletForm();
+      }
+    }
+    
+    function closeNewEntryModal() { 
+      document.getElementById('newEntryModal').classList.add('hidden'); 
+    }
+
+    async function saveEntry(e) {
+      e.preventDefault();
+      const date = document.getElementById('inputDate').value;
+      const container = document.getElementById('inputContainer').value.trim();
+      const opId = window.innerWidth < 640 ? 'inputOperatorMobile' : 'inputOperator';
+      const operator = document.getElementById(opId).value.trim();
+      const notes = document.getElementById('inputNotes').value.trim();
+      const productId = document.getElementById('productSelect').value;
+
+      if(!productId) return showToast('Error', 'Selecciona un producto', 'error');
+      const prod = products.find(p => p.id === productId);
+      
+      const rows = document.querySelectorAll('.pallet-row');
+      const pallets = [];
+      for(let i=0; i<rows.length; i++){
+        const b = parseInt(rows[i].querySelector('.box-input').value);
+        const w = parseFloat(rows[i].querySelector('.weight-input').value);
+        if(!b || !w) return showToast('Error', 'Cajas y Peso son obligatorios en cada palet', 'error');
+        pallets.push({ palletNo: i+1, boxes: b, weight: w });
+      }
+
+      showToast('Guardando', 'Enviando a la nube...', 'info');
+
+      if(editingEntryId) {
+        const existing = entries.find(x => x.id === editingEntryId);
+        const updatedData = {
+          date, 
+          container, 
+          operator,
+          notes,
+          productId, 
+          productName: prod.name, 
+          productBrand: prod.brand, 
+          pallets,
+          dispatches: existing.dispatches || []
+        };
+
+        if (db && currentUser) {
+          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'entries', editingEntryId), updatedData);
+        } else {
+          const idx = entries.findIndex(x => x.id === editingEntryId);
+          entries[idx] = { id: editingEntryId, ...updatedData };
+          renderApp();
+        }
+        showToast('Éxito', 'Registro actualizado en la nube');
+      } else {
+        const newId = 'entry-' + Date.now();
+        const newEntry = {
+          date, 
+          container, 
+          operator,
+          notes,
+          productId, 
+          productName: prod.name, 
+          productBrand: prod.brand, 
+          pallets, 
+          dispatches: [] 
+        };
+
+        if (db && currentUser) {
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'entries', newId), newEntry);
+        } else {
+          entries.unshift({ id: newId, ...newEntry });
+          renderApp();
+        }
+        showToast('Éxito', 'Ingreso guardado permanentemente');
+      }
+      closeNewEntryModal();
+    }
+
+    function openDispatchModal(entryId) {
+      dispatchingEntryId = entryId;
+      const item = entries.find(e => e.id === entryId);
+      if (!item) return;
+
+      const inB = item.pallets.reduce((a, p) => a + p.boxes, 0);
+      const inW = item.pallets.reduce((a, p) => a + p.weight, 0);
+      const inPal = item.pallets.length;
+      const outB = (item.dispatches || []).reduce((a, d) => a + d.boxes, 0);
+      const outW = (item.dispatches || []).reduce((a, d) => a + d.weight, 0);
+      const outPal = (item.dispatches || []).reduce((a, d) => a + (d.pallets || 0), 0);
+      
+      document.getElementById('dispatchProdName').textContent = `${item.productName} - ${item.productBrand}`;
+      document.getElementById('dispatchContRef').textContent = `Lote / Contenedor: ${item.container}`;
+      document.getElementById('dispatchStockBadge').textContent = `${Math.max(0, inPal-outPal)} palets | ${Math.max(0, inB-outB)} cjs | ${Math.max(0, inW-outW).toFixed(1)} kg`;
+      
+      document.getElementById('dispatchForm').reset();
+      document.getElementById('dispatchDate').value = todayStr;
+      document.getElementById('dispatchPallets').value = '';
+      document.getElementById('dispatchNotes').value = '';
+      document.getElementById('dispatchModal').classList.remove('hidden');
+    }
+
+    function closeDispatchModal() { 
+      document.getElementById('dispatchModal').classList.add('hidden'); 
+    }
+
+    function handleDispatchBoxChange() {
+      const item = entries.find(e => e.id === dispatchingEntryId);
+      if (!item) return;
+      const inB = item.pallets.reduce((a, p) => a + p.boxes, 0);
+      const inW = item.pallets.reduce((a, p) => a + p.weight, 0);
+      const val = parseFloat(document.getElementById('dispatchBoxes').value);
+      if(val > 0 && inB > 0) {
+        document.getElementById('dispatchWeight').value = (val * (inW/inB)).toFixed(2);
+      }
+    }
+
+    async function saveDispatch(e) {
+      e.preventDefault();
+      const item = entries.find(x => x.id === dispatchingEntryId);
+      if (!item) return;
+
+      const pVal = parseInt(document.getElementById('dispatchPallets').value) || 0;
+      const b = parseInt(document.getElementById('dispatchBoxes').value);
+      const w = parseFloat(document.getElementById('dispatchWeight').value);
+      const dest = document.getElementById('dispatchDestination').value.trim() || 'Despacho Regular';
+      const notes = document.getElementById('dispatchNotes').value.trim();
+      const dStr = document.getElementById('dispatchDate').value;
+      
+      const availBoxes = item.pallets.reduce((a, p) => a + p.boxes, 0) - (item.dispatches || []).reduce((a, d) => a + d.boxes, 0);
+      if(b > availBoxes) return showToast('Error', 'Stock de cajas insuficiente para esa salida', 'error');
+
+      const updatedDispatches = [...(item.dispatches || [])];
+      updatedDispatches.unshift({ 
+        id: 'disp-' + Date.now(), 
+        date: dStr, 
+        pallets: pVal,
+        boxes: b, 
+        weight: w, 
+        destination: dest,
+        notes: notes
+      });
+
+      if (db && currentUser) {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'entries', dispatchingEntryId), {
+          dispatches: updatedDispatches
+        });
+      } else {
+        item.dispatches = updatedDispatches;
+        renderApp();
+      }
+
+      showToast('Despachado', `Se restaron ${b} cajas${pVal > 0 ? ` (${pVal} palets)` : ''} exitosamente.`);
+      closeDispatchModal();
+    }
+    
+    async function deleteDispatch(entryId, dispatchId) {
+      const item = entries.find(e => e.id === entryId);
+      if (!item) return;
+
+      const updatedDispatches = (item.dispatches || []).filter(d => d.id !== dispatchId);
+
+      if (db && currentUser) {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'entries', entryId), {
+          dispatches: updatedDispatches
+        });
+      } else {
+        item.dispatches = updatedDispatches;
+        renderApp();
+      }
+      showToast('Revertido', 'Salida anulada, stock recuperado en la nube', 'info');
+    }
+
+    function clearFilters() {
+      document.getElementById('searchInput').value = '';
+      searchQuery = '';
+      setFilterPeriod('all');
+    }
+
+    function setFilterPeriod(p) { 
+      currentFilterPeriod = p; 
+      ['today', 'week', 'month', 'all'].forEach(id => {
+        const btn = document.getElementById('filter-' + id);
+        if (!btn) return;
+        if (id === p) {
+          btn.className = 'period-btn flex-shrink-0 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-bold border transition-colors bg-brand-red text-white border-brand-red whitespace-nowrap';
+        } else {
+          btn.className = 'period-btn flex-shrink-0 px-4 py-2.5 sm:py-2 rounded-xl text-sm font-bold border transition-colors bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-300 whitespace-nowrap';
+        }
+      });
+      renderApp(); 
+    }
+
+    function handleSearch() { 
+      searchQuery = document.getElementById('searchInput').value.toLowerCase(); 
+      renderApp(); 
+    }
+    
+    function renderApp() {
+      const now = new Date(), currMo = now.getMonth(), currYr = now.getFullYear();
+      let totalK = 0, totalB = 0, outK = 0, outB = 0, palC = 0;
+
+      const filtered = entries.filter(item => {
+        const itemD = new Date(item.date + 'T00:00:00');
+        if(currentFilterPeriod === 'today' && item.date !== todayStr) return false;
+        if(currentFilterPeriod === 'week' && Math.ceil(Math.abs(now - itemD)/(1000*3600*24)) > 7) return false;
+        if(currentFilterPeriod === 'month' && (itemD.getMonth() !== currMo || itemD.getFullYear() !== currYr)) return false;
+        if(searchQuery && !`${item.container} ${item.productName} ${item.operator || ''}`.toLowerCase().includes(searchQuery)) return false;
+        return true;
+      });
+
+      const container = document.getElementById('notesContainer');
+      const counterBadge = document.getElementById('recordCountBadge');
+      if (counterBadge) counterBadge.textContent = `${filtered.length} registro${filtered.length === 1 ? '' : 's'}`;
+
+      if(filtered.length === 0) {
+        container.innerHTML = ''; 
+        document.getElementById('emptyState').classList.remove('hidden'); 
+      } else {
+        document.getElementById('emptyState').classList.add('hidden');
+        container.innerHTML = filtered.map(item => {
+          const inW = item.pallets.reduce((a, p) => a + p.weight, 0);
+          const inB = item.pallets.reduce((a, p) => a + p.boxes, 0);
+          const inPal = item.pallets.length;
+          const outW = (item.dispatches || []).reduce((a, d) => a + d.weight, 0);
+          const outBox = (item.dispatches || []).reduce((a, d) => a + d.boxes, 0);
+          const outPal = (item.dispatches || []).reduce((a, d) => a + (d.pallets || 0), 0);
+          
+          totalK += (inW - outW); 
+          totalB += (inB - outBox); 
+          outK += outW; 
+          outB += outBox; 
+          palC += Math.max(0, inPal - outPal);
+          
+          const dep = (inB - outBox) <= 0;
+
+          return `
+            <article class="bg-white rounded-2xl border ${dep ? 'border-slate-300 opacity-90' : 'border-slate-200'} shadow-sm overflow-hidden mb-4">
+              <div class="p-3 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 bg-slate-50 border-b border-slate-200">
+                
+                <div class="flex items-start gap-3 w-full lg:w-auto">
+                  <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-black text-white flex flex-col items-center justify-center flex-shrink-0 border-l-4 border-brand-red">
+                    <span class="text-[10px] sm:text-xs uppercase text-slate-400 leading-none mb-0.5">DÍA</span>
+                    <span class="text-sm sm:text-base font-black leading-none">${(item.date || '').split('-')[2] || '01'}</span>
+                  </div>
+                  <div class="flex-1">
+                    <h3 class="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                      ${item.productName} <span class="text-xs font-bold text-brand-red ml-1">${item.productBrand}</span>
+                    </h3>
+                    <div class="flex flex-wrap gap-1 mt-1">
+                      <span class="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded bg-slate-200 text-slate-700">Cont: ${item.container}</span>
+                      ${item.operator ? `<span class="text-[10px] sm:text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">Balanza: ${item.operator}</span>` : ''}
+                      ${dep ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">Agotado</span>' : ''}
+                    </div>
+                    ${item.notes ? `
+                      <p class="text-[11px] sm:text-xs text-slate-600 mt-1.5 italic bg-amber-50/70 border border-amber-200/60 rounded-lg px-2.5 py-1 inline-block">
+                        📝 ${item.notes}
+                      </p>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <div class="w-full lg:w-auto mt-1 sm:mt-0 grid grid-cols-2 sm:flex sm:flex-row items-stretch sm:items-center gap-2">
+                  
+                  <div class="col-span-2 sm:col-span-1 px-3 py-1.5 sm:py-2 bg-emerald-50 rounded-xl border border-emerald-200 text-center sm:text-right">
+                    <span class="text-[10px] sm:text-[11px] text-emerald-800 font-black uppercase">Stock Disp.</span>
+                    <div class="text-sm sm:text-base font-black text-emerald-700 leading-none">
+                      <span class="text-xs font-bold text-emerald-800">${Math.max(0, inPal - outPal)} palets • </span>${inB-outBox} <span class="text-[10px] font-bold">cjs</span> / ${(inW-outW).toFixed(1)} <span class="text-[10px]">kg</span>
+                    </div>
+                  </div>
+
+                  <button onclick="openDispatchModal('${item.id}')" ${dep ? 'disabled' : ''} class="col-span-2 sm:col-span-1 btn-scale py-3 sm:px-4 sm:py-2.5 rounded-xl ${dep ? 'bg-slate-200 text-slate-400' : 'bg-amber-500 text-slate-950 font-black shadow-md'} text-sm flex items-center justify-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> Registrar Salida
+                  </button>
+
+                  <div class="col-span-2 flex items-center justify-end sm:justify-center gap-1 border-t sm:border-0 border-slate-200 pt-2 sm:pt-0 mt-1 sm:mt-0">
+                    <button onclick="openNewEntryModal('${item.id}')" title="Editar ingreso" class="p-2 sm:p-2.5 rounded-xl text-slate-600 bg-slate-100 sm:bg-transparent hover:bg-slate-200">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Desglose de palets -->
+              <div class="p-3 sm:p-5">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                  ${item.pallets.map(p => `
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex flex-col justify-between">
+                      <div class="flex justify-between text-[10px] sm:text-xs font-black text-slate-600 mb-1">
+                        <span>P#${p.palletNo}</span> <span>${p.boxes} cjs</span>
+                      </div>
+                      <div class="text-sm sm:text-base font-black text-brand-red">${p.weight.toFixed(2)} kg</div>
+                    </div>
+                  `).join('')}
+                </div>
+
+                ${(item.dispatches && item.dispatches.length > 0) ? `
+                  <div class="mt-3 pt-3 border-t border-slate-200">
+                    <h4 class="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-800 mb-2 border-l-2 border-amber-500 pl-2">
+                      Historial de Salidas (${item.dispatches.length})
+                    </h4>
+                    <div class="space-y-1.5">
+                      ${item.dispatches.map(d => `
+                        <div class="bg-amber-50/50 rounded-lg p-2.5 flex flex-col sm:flex-row sm:items-center justify-between text-xs border border-amber-100 gap-1 sm:gap-0">
+                          <div>
+                            <span class="font-bold text-amber-900 bg-amber-200 px-1.5 py-0.5 rounded mr-1">-${d.boxes} cjs</span>
+                            ${d.pallets ? `<span class="font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded mr-1">-${d.pallets} palets</span>` : ''}
+                            <span class="text-slate-700 font-semibold">${d.destination || 'Despacho'} • ${d.date}</span>
+                            ${d.notes ? `<span class="block sm:inline sm:ml-2 text-[11px] text-slate-500 italic">📝 ${d.notes}</span>` : ''}
+                          </div>
+                          <div class="flex items-center justify-between sm:justify-end gap-2 mt-1 sm:mt-0">
+                            <span class="font-black text-amber-800">-${d.weight.toFixed(1)} kg</span>
+                            <button onclick="deleteDispatch('${item.id}', '${d.id}')" title="Anular salida" class="text-slate-400 hover:text-red-600 p-1">
+                              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                          </div>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('kpiTotalKilos').innerHTML = `${totalK.toLocaleString('en-US',{maximumFractionDigits:1})} <span class="text-xs sm:text-lg text-slate-500">kg</span>`;
+      document.getElementById('kpiTotalCajas').innerHTML = totalB.toLocaleString();
+      document.getElementById('kpiTotalSalidas').innerHTML = `${outK.toLocaleString('en-US',{maximumFractionDigits:1})} <span class="text-xs sm:text-lg text-slate-500">kg</span>`;
+      document.getElementById('kpiTotalNotas').innerHTML = palC;
+    }
+
+    let toastTimeout;
+    function showToast(title, msg, type='success') {
+      const t = document.getElementById('toastNotification');
+      const titleEl = document.getElementById('toastTitle');
+      const msgEl = document.getElementById('toastMessage');
+      if (!t || !titleEl || !msgEl) return;
+
+      titleEl.textContent = title;
+      msgEl.textContent = msg;
+      t.classList.remove('translate-y-40');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => t.classList.add('translate-y-40'), 3000);
+    }
+
+    window.openProductsModal = openProductsModal;
+    window.closeProductsModal = closeProductsModal;
+    window.addProductFromModal = addProductFromModal;
+    window.deleteProduct = deleteProduct;
+    window.showInlineProductCreate = showInlineProductCreate;
+    window.saveNewProductInline = saveNewProductInline;
+    window.openNewEntryModal = openNewEntryModal;
+    window.closeNewEntryModal = closeNewEntryModal;
+    window.addPalletRow = addPalletRow;
+    window.removePalletRow = removePalletRow;
+    window.handlePalletInputChange = handlePalletInputChange;
+    window.saveEntry = saveEntry;
+    window.openDispatchModal = openDispatchModal;
+    window.closeDispatchModal = closeDispatchModal;
+    window.handleDispatchBoxChange = handleDispatchBoxChange;
+    window.saveDispatch = saveDispatch;
+    window.deleteDispatch = deleteDispatch;
+    window.clearFilters = clearFilters;
+    window.setFilterPeriod = setFilterPeriod;
+    window.handleSearch = handleSearch;
+    window.openDbConfigModal = openDbConfigModal;
+    window.closeDbConfigModal = closeDbConfigModal;
+    window.applyManualDbConfig = applyManualDbConfig;
+
+    window.addEventListener('DOMContentLoaded', () => { 
+      initCloudDatabase(); 
+    });
+  </script>
+</body>
+</html>
